@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# App runtime data (created on first run; not committed so the seed is deterministic)
+data/reservations.json
+
+# Secrets / local env
+.env
+*.local
+
+# Logs
+*.log
+
+# Tooling / local agent config
+.claude/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

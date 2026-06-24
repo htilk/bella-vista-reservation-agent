@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bella Vista — Reservations</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">🍝</span>
+        <div>
+          <h1>Bella Vista</h1>
+          <p class="tagline">Reservations assistant</p>
+        </div>
+      </div>
+      <button id="reset-btn" class="reset" title="Start a new conversation">New chat</button>
+    </header>
+
+    <section id="transcript" class="transcript" aria-live="polite" aria-label="Chat transcript">
+      <!-- messages injected here -->
+    </section>
+
+    <footer class="composer">
+      <form id="chat-form" autocomplete="off">
+        <input
+          id="message-input"
+          type="text"
+          name="message"
+          placeholder="Book, change, or cancel a table…"
+          aria-label="Message"
+          maxlength="2000"
+          autofocus
+        />
+        <button id="send-btn" type="submit" aria-label="Send">Send</button>
+      </form>
+      <p class="hint">Open Tue–Sun, 5:00–9:30pm · parties up to 8 · press Enter to send</p>
+    </footer>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

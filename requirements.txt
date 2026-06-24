@@ -1,0 +1,15 @@
+# --- Core (required to run the demo, zero API keys needed) ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+dateparser==1.2.0          # natural-language date parsing ("tomorrow", "next Friday")
+
+# --- Testing ---
+pytest==8.3.4
+httpx==0.28.1              # used by FastAPI's TestClient
+
+# --- Optional LLM providers ---
+# The agent runs fully on the deterministic NLU with NO key. To enable the
+# real LLM tool-calling path, install one of these and set the matching key:
+#   pip install anthropic   &&  set ANTHROPIC_API_KEY=...
+#   pip install openai      &&  set OPENAI_API_KEY=...
+# They are intentionally left out of the required set so the demo installs lean.
