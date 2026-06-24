@@ -13,6 +13,10 @@ import tempfile
 # imported, so the test suite never touches the real data/reservations.json.
 os.environ.setdefault("BV_DATA_FILE", os.path.join(tempfile.mkdtemp(), "reservations.json"))
 
+# Force the deterministic brain in tests so the suite stays hermetic and never
+# spends an API key, even if a .env defines ANTHROPIC_API_KEY.
+os.environ["BV_DISABLE_LLM"] = "1"
+
 import pytest
 
 from reservation_agent import clock

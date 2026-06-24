@@ -16,10 +16,15 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+# Load a local .env (if present) so ANTHROPIC_API_KEY / OPENAI_API_KEY / BV_*
+# can be set there without exporting them. Does nothing if .env is absent.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from reservation_agent import config
 from reservation_agent.agent import Agent, get_brain

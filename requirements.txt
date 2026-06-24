@@ -2,6 +2,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 dateparser==1.2.0          # natural-language date parsing ("tomorrow", "next Friday")
+python-dotenv==1.0.1       # loads .env (optional API keys); harmless if no .env exists
 
 # --- Testing ---
 pytest==8.3.4

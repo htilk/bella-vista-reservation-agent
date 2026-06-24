@@ -44,16 +44,22 @@ pytest            # 45 tests: rules, tools, allocator, a concurrency race, and t
 
 The agent works fully on a built-in deterministic parser. To switch the
 conversational layer to a real LLM with tool-calling, install a provider SDK and
-set its key — the app auto-detects it on startup:
+provide a key — the app auto-detects it on startup. The easiest way is a `.env`:
 
 ```bash
-pip install anthropic && export ANTHROPIC_API_KEY=sk-...    # Anthropic Claude
-# or
-pip install openai    && export OPENAI_API_KEY=sk-...       # OpenAI
+cp .env.example .env          # then put your key in .env
+pip install anthropic         # (or: pip install openai)
+python app.py                 # startup log will read: Conversation brain: LLM (claude-opus-4-8)
 ```
 
+`.env` is gitignored. You can also just export the variable instead:
+`export ANTHROPIC_API_KEY=sk-...` (or `OPENAI_API_KEY=...`). Set
+`BV_LLM_MODEL=claude-haiku-4-5` for a cheaper/faster model.
+
 Either way the **business logic is identical** — the LLM only orchestrates the
-same tools and phrases replies (see *Architecture* below).
+same tools and phrases replies, so it can never violate a business rule (see
+*Architecture* below). The test suite always uses the deterministic brain
+(`BV_DISABLE_LLM=1`), so it stays hermetic and never spends your key.
 
 ---
 

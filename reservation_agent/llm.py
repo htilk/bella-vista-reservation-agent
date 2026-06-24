@@ -55,6 +55,8 @@ def build_system_prompt() -> str:
 
 def select_brain() -> Optional["LLMBrain"]:
     """Return an LLM brain if a key + SDK are available, else None."""
+    if os.environ.get("BV_DISABLE_LLM"):  # tests force the deterministic brain (no network)
+        return None
     model_override = os.environ.get("BV_LLM_MODEL")
     if os.environ.get("ANTHROPIC_API_KEY"):
         try:
