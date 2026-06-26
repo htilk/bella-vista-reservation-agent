@@ -123,8 +123,15 @@ loudly** on bad input.
 
 **Backend requirements (§6.2):** `POST /chat`, cookie-based sessions, persistence
 that survives restart, and every tool invocation logged to the server console.
-Plus a read-only `GET /api/reservations` to make verification easy (it returns
-guest PII, so it's a localhost debug aid — set `BV_DEBUG=0` to disable it).
+Plus a read-only `GET /api/reservations` to make verification easy — it returns
+guest PII, so it's **off by default**; opt in for local debugging with
+`BV_DEBUG=1 python app.py`.
+
+**Baseline hardening (on by default):** security headers on every response
+(`nosniff`, `X-Frame-Options: DENY`, a strict same-origin CSP), a per-session
+rate limit on `/chat` (tune with `BV_RATE_LIMIT_MAX` / `BV_RATE_LIMIT_WINDOW`),
+a 500-char cap on the free-text `notes` field, and agent text rendered as pure
+DOM nodes (no `innerHTML`) so a reply can never inject markup.
 
 **Stretch goals:** ST-3 (a read-only admin view via `/api/reservations`) and
 ST-6 (mobile-responsive). The LLM tool-calling adapter is also wired (dormant
@@ -191,6 +198,10 @@ The BRD left three questions intentionally ambiguous. My choices:
 - Persistence is a JSON file suitable for a single-process demo. For real
   multi-process deployment I'd move to SQLite (a transaction per booking) — the
   `store.py` interface is already shaped so this is a drop-in change.
+- **Production security roadmap** (beyond the baseline hardening above): real
+  ownership verification on lookups/mutations (confirmation-code + phone, or an
+  SMS OTP) to close confirmation-code enumeration; PII encryption at rest;
+  HTTPS + HSTS at the proxy; and an append-only audit log of create/modify/cancel.
 - Not implemented (out of the core scope): waitlist (ST-1), recurring
   reservations (ST-2), cross-session guest memory (ST-4), token streaming (ST-5).
 

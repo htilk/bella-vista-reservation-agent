@@ -123,6 +123,19 @@ class ReservationStore:
             if r.confirmation_code != ex
         ]
 
+    def party_sizes_by_slot(self, date: str) -> dict[str, list[int]]:
+        """All active party sizes on ``date``, grouped by "HH:MM", in ONE scan.
+
+        Lets a caller evaluate many slots (e.g. the ±90-min alternative search)
+        without re-scanning the store per slot.
+        """
+        by_slot: dict[str, list[int]] = {}
+        with self._lock:
+            for r in self._by_code.values():
+                if r.is_active and r.date == date:
+                    by_slot.setdefault(r.time, []).append(r.party_size)
+        return by_slot
+
     def find_active(self, name: Optional[str] = None, date: Optional[str] = None) -> list[Reservation]:
         """Look up active reservations by name and/or date (US-3/US-4 fallback)."""
         nm = name.strip().lower() if name else None

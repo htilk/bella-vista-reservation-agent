@@ -12,7 +12,9 @@ CODE_LEN = 4
 
 def generate_code(existing: Iterable[str]) -> str:
     """Return a fresh BV-XXXX code not present in ``existing``."""
-    taken = {c.upper() for c in existing}
+    # Codes are upper-cased by construction, so a set in (the store's normal
+    # case) can be used as-is; only re-normalize other iterables.
+    taken = existing if isinstance(existing, (set, frozenset)) else {c.upper() for c in existing}
     # 31**4 ≈ 924k combinations; collisions are astronomically rare, but loop anyway.
     for _ in range(10_000):
         code = PREFIX + "".join(secrets.choice(ALPHABET) for _ in range(CODE_LEN))

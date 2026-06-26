@@ -12,7 +12,9 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 import uuid
+from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -40,8 +42,41 @@ log = logging.getLogger("bella_vista.app")
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 COOKIE_NAME = "bv_session"
-# The /api/reservations debug view returns guest PII; gate it off with BV_DEBUG=0.
-DEBUG_API = os.environ.get("BV_DEBUG", "1").strip().lower() not in ("0", "false", "no", "off")
+# The /api/reservations debug view returns guest PII, so it's OFF by default.
+# Opt in for local debugging with BV_DEBUG=1 (e.g. `BV_DEBUG=1 python app.py`).
+DEBUG_API = os.environ.get("BV_DEBUG", "0").strip().lower() in ("1", "true", "yes", "on")
+
+# Per-session rate limit for POST /chat: at most RATE_LIMIT_MAX messages within
+# RATE_LIMIT_WINDOW seconds. Cheap in-memory sliding window keyed by session id;
+# also blunts confirmation-code enumeration, which goes through /chat.
+RATE_LIMIT_MAX = int(os.environ.get("BV_RATE_LIMIT_MAX", "20"))
+RATE_LIMIT_WINDOW = float(os.environ.get("BV_RATE_LIMIT_WINDOW", "30"))
+_RATE_HITS: dict[str, deque[float]] = {}
+_RATE_LOCK = threading.Lock()
+
+
+def _rate_limited(sid: str) -> bool:
+    """Record a hit for ``sid`` and report whether it exceeds the window budget."""
+    now = time.monotonic()
+    cutoff = now - RATE_LIMIT_WINDOW
+    with _RATE_LOCK:
+        hits = _RATE_HITS.setdefault(sid, deque())
+        while hits and hits[0] < cutoff:
+            hits.popleft()
+        if len(hits) >= RATE_LIMIT_MAX:
+            return True
+        hits.append(now)
+        return False
+
+
+# Conservative headers for every response. The UI only loads its own same-origin
+# assets, so a strict CSP doesn't break anything.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+}
 
 # One shared, persistent store for the whole server (reservations are global).
 # Chat sessions only isolate per-guest *conversation* state.
@@ -60,6 +95,14 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Bella Vista Reservations", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for header, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(header, value)
+    return response
 
 
 class ChatRequest(BaseModel):
@@ -85,6 +128,11 @@ def index() -> FileResponse:
 def chat(req: ChatRequest, request: Request, response: Response) -> dict:
     sid, agent = _get_or_create_session(request.cookies.get(COOKIE_NAME))
     response.set_cookie(COOKIE_NAME, sid, httponly=True, samesite="lax")
+    if _rate_limited(sid):
+        log.warning("CHAT [%s] rate limited", sid[:8])
+        response.status_code = 429
+        return {"reply": "You're sending messages a little too quickly — give me a moment and try again.",
+                "confirmation_code": None}
     log.info("CHAT [%s] guest: %s", sid[:8], req.message)
     try:
         result = agent.send(req.message)
@@ -110,8 +158,8 @@ def reset(response: Response) -> dict:
 def reservations() -> JSONResponse:
     """Read-only view of the data store — handy for verifying the demo.
 
-    Returns guest PII, so it's a localhost debug aid only; set BV_DEBUG=0 to
-    disable it (e.g. before any non-local deployment).
+    Returns guest PII, so it's OFF by default; opt in for local debugging with
+    BV_DEBUG=1. Never enable it on a non-local deployment.
     """
     if not DEBUG_API:
         return JSONResponse({"error": "not found"}, status_code=404)

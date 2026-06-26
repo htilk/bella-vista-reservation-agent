@@ -12,6 +12,9 @@ import tempfile
 # Point the app's module-level store at a throwaway file BEFORE importing app,
 # so importing it never writes the real data/ store.
 os.environ["BV_DATA_FILE"] = os.path.join(tempfile.mkdtemp(), "reservations.json")
+# The PII debug view is off by default; these tests use it to inspect the store,
+# so opt in before importing app (DEBUG_API is read at import time).
+os.environ["BV_DEBUG"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient

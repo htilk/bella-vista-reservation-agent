@@ -26,6 +26,7 @@ from .store import ReservationStore, _normalize_phone
 ALTERNATIVE_WINDOW_MIN = 90
 MAX_ALTERNATIVES = 3
 MIN_PHONE_DIGITS = 7  # "555-0123" -> 7 digits
+MAX_NOTES_LEN = 500   # keep free-text bounded so the store can't be inflated
 
 # ----------------------------------------------------------------------- validation
 
@@ -112,6 +113,15 @@ def _validate_phone(phone: str) -> str:
     return phone
 
 
+def _validate_notes(notes: str) -> str:
+    notes = (notes or "").strip()
+    if len(notes) > MAX_NOTES_LEN:
+        raise ValidationError(
+            f"Could you shorten that note? I can keep up to {MAX_NOTES_LEN} characters."
+        )
+    return notes
+
+
 # ----------------------------------------------------------------------- tools
 
 
@@ -155,6 +165,8 @@ def _find_alternatives(store: ReservationStore, date_obj: dt.date, time_obj: dt.
     """Real slots within ±90 min on the same day that can seat the party."""
     now = clock.now()
     requested = dt.datetime.combine(date_obj, time_obj)
+    # One scan of the store for the whole day, then look slots up in the dict.
+    sizes_by_slot = store.party_sizes_by_slot(date_obj.isoformat())
     candidates: list[tuple[int, str]] = []
     for slot in config.SLOT_TIMES:
         if slot == time_obj:
@@ -165,7 +177,7 @@ def _find_alternatives(store: ReservationStore, date_obj: dt.date, time_obj: dt.
             continue
         if when < now:  # never offer a past slot
             continue
-        existing = store.party_sizes_in_slot(date_obj.isoformat(), slot.strftime("%H:%M"))
+        existing = sizes_by_slot.get(slot.strftime("%H:%M"), [])
         if allocator.can_add_party(existing, party):
             candidates.append((abs(diff), slot.strftime("%H:%M")))
     candidates.sort(key=lambda c: (c[0], c[1]))
@@ -187,6 +199,7 @@ def create_reservation(
         date_obj, time_obj, _ = _validate_slot_rules(date, time)
         name = _validate_name(guest_name)
         phone_ok = _validate_phone(phone)
+        notes_ok = _validate_notes(notes)
         d_iso = date_obj.isoformat()
         t_hhmm = time_obj.strftime("%H:%M")
 
@@ -209,7 +222,7 @@ def create_reservation(
             party_size=party,
             guest_name=name,
             phone=phone_ok,
-            notes=(notes or "").strip(),
+            notes=notes_ok,
             status=CONFIRMED,
             created_at=clock.created_at_iso(),
         )
@@ -255,6 +268,7 @@ def modify_reservation(store: ReservationStore, confirmation_code: str, changes:
         date_obj, time_obj, _ = _validate_slot_rules(new_date, new_time)
         name = _validate_name(new_name)
         phone_ok = _validate_phone(new_phone)
+        notes_ok = _validate_notes(new_notes)
         d_iso = date_obj.isoformat()
         t_hhmm = time_obj.strftime("%H:%M")
 
@@ -274,7 +288,7 @@ def modify_reservation(store: ReservationStore, confirmation_code: str, changes:
             party_size=party,
             guest_name=name,
             phone=phone_ok,
-            notes=(new_notes or "").strip(),
+            notes=notes_ok,
             status=CONFIRMED,
             created_at=current.created_at,
         )
